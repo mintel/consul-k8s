@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/consul-k8s/acceptance/framework/consul"
@@ -17,6 +18,11 @@ import (
 const (
 	gossipPolicy = `
 path "consul/data/secret/gossip" {
+  capabilities = ["read"]
+}`
+
+	enterpriseLicensePolicy = `
+path "consul/data/secret/enterpriselicense" {
   capabilities = ["read"]
 }`
 
@@ -77,6 +83,10 @@ func TestVault(t *testing.T) {
 	err := vaultClient.Sys().PutPolicy("consul-gossip", gossipPolicy)
 	require.NoError(t, err)
 
+	// Create the Vault Policy for the consul-enterpriselicense.
+	err = vaultClient.Sys().PutPolicy("consul-enterpriselicense", enterpriseLicensePolicy)
+	require.NoError(t, err)
+
 	// Create the Vault Policy for the connect-ca.
 	err = vaultClient.Sys().PutPolicy("connect-ca", connectCAPolicy)
 	require.NoError(t, err)
@@ -91,7 +101,7 @@ func TestVault(t *testing.T) {
 	params := map[string]interface{}{
 		"bound_service_account_names":      consulClientServiceAccountName,
 		"bound_service_account_namespaces": ns,
-		"policies":                         "consul-gossip",
+		"policies":                         "consul-gossip,consul-enterpriselicense",
 		"ttl":                              "24h",
 	}
 	_, err = vaultClient.Logical().Write("auth/kubernetes/role/consul-client", params)
@@ -100,7 +110,7 @@ func TestVault(t *testing.T) {
 	params = map[string]interface{}{
 		"bound_service_account_names":      consulServerServiceAccountName,
 		"bound_service_account_namespaces": ns,
-		"policies":                         "consul-gossip,connect-ca,consul-server",
+		"policies":                         "consul-gossip,connect-ca,consul-server,consul-enterpriselicense",
 		"ttl":                              "24h",
 	}
 	_, err = vaultClient.Logical().Write("auth/kubernetes/role/consul-server", params)
@@ -128,6 +138,19 @@ func TestVault(t *testing.T) {
 		},
 	}
 	_, err = vaultClient.Logical().Write("consul/data/secret/gossip", params)
+	require.NoError(t, err)
+
+	// Retrieve the license.
+	enterpriseLicense := os.Getenv("CONSUL_ENT_LICENSE")
+
+	// Create the gossip secret.
+	logger.Log(t, "Creating the Enterprise License secret")
+	params = map[string]interface{}{
+		"data": map[string]interface{}{
+			"enterpriselicense": enterpriseLicense,
+		},
+	}
+	_, err = vaultClient.Logical().Write("consul/data/secret/enterpriselicense", params)
 	require.NoError(t, err)
 
 	vaultCASecret := vault.CASecretName(vaultReleaseName)
@@ -204,6 +227,9 @@ func TestVault(t *testing.T) {
 		"global.tls.httpsOnly":         "false",
 		"global.tls.enableAutoEncrypt": "true",
 
+		"global.enterpriseLicense.secretName": "consul/data/secret/enterpriselicense",
+		"global.enterpriseLicense.secretKey":  "enterpriselicense",
+
 		// For sync catalog, it is sufficient to check that the deployment is running and ready
 		// because we only care that get-auto-encrypt-client-ca init container was able
 		// to talk to the Consul server using the CA from Vault. For this reason,
@@ -229,6 +255,12 @@ func TestVault(t *testing.T) {
 	caConfig, _, err := consulClient.Connect().CAGetConfig(nil)
 	require.NoError(t, err)
 	require.Equal(t, caConfig.Provider, "vault")
+
+	// Validate that the enterprise license is set correctly.
+	logger.Log(t, "Validating the enterprise license has been set correctly.")
+	license, licenseErr := consulClient.Operator().LicenseGet(nil)
+	require.NoError(t, licenseErr)
+	require.Equal(t, license, enterpriseLicense)
 
 	// Deploy two services and check that they can talk to each other.
 	logger.Log(t, "creating static-server and static-client deployments")
