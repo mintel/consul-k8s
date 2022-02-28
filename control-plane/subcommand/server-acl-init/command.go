@@ -627,8 +627,8 @@ func (c *Command) Run(args []string) int {
 			// The names in the Helm chart are specified by users and so may not contain
 			// the words "ingress-gateway". We need to create unique names for tokens
 			// across all gateway types and so must suffix with `-ingress-gateway`.
-			tokenName := fmt.Sprintf("%s-ingress-gateway", name)
-			err = c.createLocalACL(tokenName, ingressGatewayRules, consulDC, isPrimary, true, consulClient)
+			serviceAccountName := fmt.Sprintf("%s-ingress-gateway", name)
+			err = c.createACLPolicyRoleAndBindingRule(serviceAccountName, ingressGatewayRules, consulDC, isPrimary, componentAuthMethodName, serviceAccountName, consulClient)
 			if err != nil {
 				c.log.Error(err.Error())
 				return 1
