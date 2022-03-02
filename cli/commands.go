@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/hashicorp/consul-k8s/cli/cmd/get/proxy"
 	"github.com/hashicorp/consul-k8s/cli/cmd/install"
+	"github.com/hashicorp/consul-k8s/cli/cmd/proxyconfig"
 	"github.com/hashicorp/consul-k8s/cli/cmd/status"
 	"github.com/hashicorp/consul-k8s/cli/cmd/uninstall"
 	"github.com/hashicorp/consul-k8s/cli/cmd/upgrade"
@@ -49,8 +49,8 @@ func initializeCommands(ctx context.Context, log hclog.Logger) (*common.BaseComm
 				Version:     version.GetHumanVersion(),
 			}, nil
 		},
-		"get proxy": func() (cli.Command, error) {
-			return &proxy.Command{
+		"proxyconfig": func() (cli.Command, error) {
+			return &proxyconfig.Command{
 				BaseCommand: baseCommand,
 			}, nil
 		},
