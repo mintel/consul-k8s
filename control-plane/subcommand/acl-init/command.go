@@ -143,7 +143,9 @@ func (c *Command) Run(args []string) int {
 		}
 	}
 
+	var secret string
 	if c.flagACLAuthMethod != "" {
+		// Use consul auth method to write file to sink file and then read token from sink file
 		cfg := api.DefaultConfig()
 		c.http.MergeOntoConfig(cfg)
 		c.consulClient, err = consul.NewClient(cfg)
@@ -155,28 +157,31 @@ func (c *Command) Run(args []string) int {
 		meta := map[string]string{
 			"component": c.flagComponentName,
 		}
-		err := common.ConsulLogin(c.consulClient, cfg, c.flagACLAuthMethod, c.flagPrimaryDatacenter, "", c.bearerTokenFile, "", c.flagTokenSinkFile, meta, c.logger)
+		token, err := common.ConsulLogin(c.consulClient, cfg, c.flagACLAuthMethod, c.flagPrimaryDatacenter, "", c.bearerTokenFile, "", c.flagTokenSinkFile, meta, c.logger)
 		if err != nil {
 			c.logger.Error("Consul login failed", "error", err)
 			return 1
 		}
-		c.logger.Info("Consul login succeeded")
-		return 0
-	}
-	// Check if the client secret exists yet
-	// If not, wait until it does
-	var secret string
-	for {
-		var err error
-		secret, err = c.getSecret(c.flagSecretName)
-		if err != nil {
-			c.logger.Error("Error getting Kubernetes secret", "error", err)
+		secret = token.SecretID
+		c.logger.Info("Successfully read ACL token from the server")
+	} else {
+		// Use k8s secret to obtain token
+
+		// Check if the client secret exists yet
+		// If not, wait until it does
+		for {
+			var err error
+			secret, err = c.getSecret(c.flagSecretName)
+			if err != nil {
+				c.logger.Error("Error getting Kubernetes secret: ", "error", err)
+				//			c.UI.Error(fmt.Sprintf("Error getting Kubernetes secret: %s", err))
+			}
+			if err == nil {
+				c.logger.Info("Successfully read Kubernetes secret")
+				break
+			}
+			time.Sleep(1 * time.Second)
 		}
-		if err == nil {
-			c.logger.Info("Successfully read Kubernetes secret")
-			break
-		}
-		time.Sleep(1 * time.Second)
 	}
 
 	if c.flagInitType == "client" {
