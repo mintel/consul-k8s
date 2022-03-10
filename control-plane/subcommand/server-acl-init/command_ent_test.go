@@ -284,7 +284,7 @@ func TestRun_ACLPolicyUpdates(t *testing.T) {
 				"-server-port=" + strings.Split(testAgent.HTTPAddr, ":")[1],
 				"-resource-prefix=" + resourcePrefix,
 				"-k8s-namespace", k8sNamespaceFlag,
-				"-create-client-token",
+				"-client",
 				"-allow-dns",
 				"-create-mesh-gateway-token",
 				"-sync-catalog",
@@ -669,7 +669,7 @@ func TestRun_TokensWithNamespacesEnabled(t *testing.T) {
 		LocalToken  bool
 	}{
 		"client token": {
-			TokenFlags:  []string{"-create-client-token"},
+			TokenFlags:  []string{"-client"},
 			PolicyNames: []string{"client-token"},
 			PolicyDCs:   []string{"dc1"},
 			SecretNames: []string{resourcePrefix + "-client-acl-token"},
