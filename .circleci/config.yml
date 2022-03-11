@@ -182,6 +182,7 @@ jobs:
           command: go run hack/lint-api-new-client/main.go
 
   test-control-plane:
+    resource_class: xlarge
     executor: go
     environment:
       TEST_RESULTS: /tmp/test-results
@@ -213,6 +214,7 @@ jobs:
           path: /tmp/test-results
 
   test-enterprise-control-plane:
+    resource_class: xlarge
     executor: go
     environment:
       TEST_RESULTS: /tmp/test-results
