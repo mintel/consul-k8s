@@ -815,7 +815,7 @@ func (c *Command) configureGateway(gatewayType string, gatewayNames []string,
 		// the words "ingress-gateway" or "terminating-gateway". We need to create unique names for tokens
 		// across all gateway types and so must suffix with either `-ingress-gateway` of `-terminating-gateway`.
 		serviceAccountName := fmt.Sprintf("%s-%s-gateway", name, gatewayType)
-		err = c.createACLPolicyRoleAndBindingRule(serviceAccountName, rules, consulDC, primaryDC, true, primary, authMethodName, serviceAccountName, consulClient)
+		err = c.createACLPolicyRoleAndBindingRule(serviceAccountName, rules, consulDC, primaryDC, localPolicy, primary, authMethodName, serviceAccountName, consulClient)
 		if err != nil {
 			c.log.Error(err.Error())
 			return err
