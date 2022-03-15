@@ -1,6 +1,7 @@
 package serveraclinit
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -22,12 +23,7 @@ func (c *Command) createACLPolicyRoleAndBindingRule(componentName, rules, dc, pr
 		policyName += fmt.Sprintf("-%s", dc)
 	}
 	var datacenters []string
-	if global {
-		datacenters = append(datacenters, dc)
-		if !primary {
-			datacenters = append(datacenters, primaryDC)
-		}
-	} else if dc != "" {
+	if !global && dc != "" {
 		datacenters = append(datacenters, dc)
 	}
 	policyTmpl := api.ACLPolicy{
@@ -153,30 +149,40 @@ func (c *Command) updateOrCreateBindingRule(client *api.Client, authMethodName s
 		return err
 	}
 
-	// Find the policy that matches our name and description
-	// and that's the ID we need
-	for _, existingRule := range existingRules {
-		if existingRule.BindName == abr.BindName && existingRule.Description == abr.Description {
-			abr.ID = existingRule.ID
+	// If the binding rule already exists, update it
+	// This updates the binding rule any time the acl bootstrapping
+	// command is rerun, which is a bit of extra overhead, but is
+	// necessary to pick up any potential config changes.
+	if len(existingRules) > 0 {
+		// Find the policy that matches our name and description
+		// and that's the ID we need
+		for _, existingRule := range existingRules {
+			if existingRule.BindName == abr.BindName && existingRule.Description == abr.Description {
+				abr.ID = existingRule.ID
+			}
 		}
-	}
 
-	// This will happen in these circumstances:
-	// 1) there are no existing policies
-	// 2) there are existing policies for this auth method, but none that match
-	//    the binding rule set up here in the bootstrap method.
-	if abr.ID == "" {
-		return c.untilSucceeds(fmt.Sprintf("creating acl binding rule for %s", authMethodName),
+		// This will only happen if there are existing policies
+		// for this auth method, but none that match the binding
+		// rule set up here in the bootstrap method.
+		if abr.ID == "" {
+			return errors.New("unable to find a matching ACL binding rule to update")
+		}
+
+		err = c.untilSucceeds(fmt.Sprintf("updating acl binding rule for %s", authMethodName),
+			func() error {
+				_, _, err := client.ACL().BindingRuleUpdate(abr, nil)
+				return err
+			})
+	} else {
+		// Otherwise create the binding rule
+		err = c.untilSucceeds(fmt.Sprintf("creating acl binding rule for %s", authMethodName),
 			func() error {
 				_, _, err := client.ACL().BindingRuleCreate(abr, nil)
 				return err
 			})
 	}
-	return c.untilSucceeds(fmt.Sprintf("updating acl binding rule for %s", authMethodName),
-		func() error {
-			_, _, err := client.ACL().BindingRuleUpdate(abr, nil)
-			return err
-		})
+	return err
 }
 
 // createLocalACL creates a policy and acl token for this dc (datacenter), i.e.
