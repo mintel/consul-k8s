@@ -158,7 +158,7 @@ spec:
         {{- include "consul.getAutoEncryptClientCA" $root | nindent 8 }}
         {{- end }}
         # service-init registers the terminating gateway service.
-        - name: service-init
+        - name: terminating-gateway-init
           image: {{ $root.Values.global.imageK8S }}
           env:
             - name: HOST_IP
@@ -192,7 +192,9 @@ spec:
                   {{- if $root.Values.global.adminPartitions.enabled }}
                   -partition={{ $root.Values.global.adminPartitions.name }} \
                   {{- end }}
-                  -token-sink-file=/consul/service/acl-token
+                  -token-sink-file=/consul/service/acl-token \
+                  -log-level={{ default $root.Values.global.logLevel }} \
+                  -log-json={{ $root.Values.global.logJSON }}
                 {{- end }}
 
                 cat > /consul/service/service.hcl << EOF
@@ -232,9 +234,6 @@ spec:
               mountPath: /consul/service
             - name: consul-bin
               mountPath: /consul-bin
-            - mountPath: /consul/login
-              name: consul-data
-              readOnly: false
             {{- if $root.Values.global.tls.enabled }}
             {{- if $root.Values.global.tls.enableAutoEncrypt }}
             - name: consul-auto-encrypt-ca-cert
@@ -260,8 +259,8 @@ spec:
           volumeMounts:
           - name: consul-bin
             mountPath: /consul-bin
-          - mountPath: /consul/login
-            name: consul-data
+          - mountPath: /consul/service
+            name: consul-service
             readOnly: true
           {{- if $root.Values.global.tls.enabled }}
           {{- if $root.Values.global.tls.enableAutoEncrypt }}
@@ -292,7 +291,7 @@ spec:
                   fieldPath: metadata.name
             {{- if $root.Values.global.acls.manageSystemACLs }}
             - name: CONSUL_HTTP_TOKEN_FILE
-              value: "/consul/login/acl-token"
+              value: "/consul/service/acl-token"
             {{- end }}
             {{- if $root.Values.global.tls.enabled }}
             - name: CONSUL_HTTP_ADDR
