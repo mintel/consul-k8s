@@ -97,9 +97,6 @@ spec:
         - name: consul-service
           emptyDir:
             medium: "Memory"
-        - name: consul-data
-          emptyDir:
-            medium: "Memory"
         {{- range (default $defaults.extraVolumes .extraVolumes) }}
         - name: userconfig-{{ .name }}
           {{ .type }}:
@@ -157,7 +154,7 @@ spec:
         {{- if (and $root.Values.global.tls.enabled $root.Values.global.tls.enableAutoEncrypt) }}
         {{- include "consul.getAutoEncryptClientCA" $root | nindent 8 }}
         {{- end }}
-        # service-init registers the terminating gateway service.
+        # terminating-gateway-init registers the terminating gateway service with Consul.
         - name: terminating-gateway-init
           image: {{ $root.Values.global.imageK8S }}
           env:

@@ -25,6 +25,29 @@ load _helpers
   [ "${actual}" = "RELEASE-NAME-consul-terminating-gateway" ]
 }
 
+@test "terminatingGateways/Deployment: Adds consul service volumeMount to gateway container" {
+  cd `chart_dir`
+  local object=$(helm template \
+      -s templates/terminating-gateways-deployment.yaml  \
+      --set 'terminatingGateways.enabled=true' \
+      --set 'connectInject.enabled=true' \
+      --set 'terminatingGateways.enabled=true' \
+      --set 'global.acls.manageSystemACLs=true' \
+      . | yq '.spec.template.spec.containers[0].volumeMounts[1]' | tee /dev/stderr)
+
+  local actual=$(echo $object |
+      yq -r '.name' | tee /dev/stderr)
+  [ "${actual}" = "consul-service" ]
+
+  local actual=$(echo $object |
+      yq -r '.mountPath' | tee /dev/stderr)
+  [ "${actual}" = "/consul/service" ]
+
+  local actual=$(echo $object |
+      yq -r '.readOnly' | tee /dev/stderr)
+  [ "${actual}" = "true" ]
+}
+
 #--------------------------------------------------------------------
 # prerequisites
 
@@ -246,7 +269,7 @@ load _helpers
   [ "${actual}" = "true" ]
 }
 
-@test "terminatingGateways/Deployment: Adds consul envvars CONSUL_HTTP_ADDR on service-init init container when ACLs are enabled and tls is enabled" {
+@test "terminatingGateways/Deployment: Adds consul envvars CONSUL_HTTP_ADDR on terminating-gateway-init init container when ACLs are enabled and tls is enabled" {
   cd `chart_dir`
   local env=$(helm template \
       -s templates/terminating-gateways-deployment.yaml \
@@ -262,7 +285,7 @@ load _helpers
   [ "${actual}" = "https://\$(HOST_IP):8501" ]
 }
 
-@test "terminatingGateways/Deployment: Adds consul envvars CONSUL_HTTP_ADDR on service-init init container when ACLs are enabled and tls is not enabled" {
+@test "terminatingGateways/Deployment: Adds consul envvars CONSUL_HTTP_ADDR on terminating-gateway-init init container when ACLs are enabled and tls is not enabled" {
   cd `chart_dir`
   local env=$(helm template \
       -s templates/terminating-gateways-deployment.yaml \
@@ -278,7 +301,7 @@ load _helpers
   [ "${actual}" = "http://\$(HOST_IP):8500" ]
 }
 
-@test "terminatingGateways/Deployment: Does not add consul envvars CONSUL_CACERT on service-init init container when ACLs are enabled and tls is not enabled" {
+@test "terminatingGateways/Deployment: Does not add consul envvars CONSUL_CACERT on terminating-gateway-init init container when ACLs are enabled and tls is not enabled" {
   cd `chart_dir`
   local actual=$(helm template \
       -s templates/terminating-gateways-deployment.yaml \
@@ -291,7 +314,7 @@ load _helpers
   [ "${actual}" = "" ]
 }
 
-@test "terminatingGateways/Deployment: Adds consul envvars CONSUL_CACERT on service-init init container when ACLs are enabled and tls is enabled" {
+@test "terminatingGateways/Deployment: Adds consul envvars CONSUL_CACERT on terminating-gateway-init init container when ACLs are enabled and tls is enabled" {
   cd `chart_dir`
   local env=$(helm template \
       -s templates/terminating-gateways-deployment.yaml \
@@ -309,7 +332,7 @@ load _helpers
 @test "terminatingGateways/Deployment: CONSUL_HTTP_TOKEN_FILE is not set when acls are disabled" {
   cd `chart_dir`
   local actual=$(helm template \
-      -s templates/client-daemonset.yaml  \
+      -s templates/terminating-gateways-deployment.yaml  \
       --set 'connectInject.enabled=true' \
       --set 'terminatingGateways.enabled=true' \
       --set 'global.acls.manageSystemACLs=false' \
@@ -343,91 +366,6 @@ load _helpers
   [ "${actual}" = "true" ]
 }
 
-@test "terminatingGateways/Deployment: Adds consul login volume when ACLs are enabled" {
-  cd `chart_dir`
-  local object=$(helm template \
-      -s templates/terminating-gateways-deployment.yaml  \
-      --set 'terminatingGateways.enabled=true' \
-      --set 'connectInject.enabled=true' \
-      --set 'global.acls.manageSystemACLs=true' \
-      . | yq '.spec.template.spec.volumes[2]' | tee /dev/stderr)
-  local actual=$(echo $object |
-      yq -r '.name' | tee /dev/stderr)
-  [ "${actual}" = "consul-data" ]
-
-  local actual=$(echo $object |
-      yq -r '.emptyDir.medium' | tee /dev/stderr)
-  [ "${actual}" = "Memory" ]
-}
-
-@test "terminatingGateways/Deployment: Adds consul login volumeMount to gateway container when ACLs are enabled" {
-  cd `chart_dir`
-  local object=$(helm template \
-      -s templates/terminating-gateways-deployment.yaml  \
-      --set 'terminatingGateways.enabled=true' \
-      --set 'connectInject.enabled=true' \
-      --set 'terminatingGateways.enabled=true' \
-      --set 'global.acls.manageSystemACLs=true' \
-      . | yq '.spec.template.spec.containers[0].volumeMounts[1]' | tee /dev/stderr)
-
-  local actual=$(echo $object |
-      yq -r '.name' | tee /dev/stderr)
-  [ "${actual}" = "consul-data" ]
-
-  local actual=$(echo $object |
-      yq -r '.mountPath' | tee /dev/stderr)
-  [ "${actual}" = "/consul/login" ]
-
-  local actual=$(echo $object |
-      yq -r '.readOnly' | tee /dev/stderr)
-  [ "${actual}" = "true" ]
-}
-
-@test "terminatingGateways/Deployment: Adds consul login volumeMount to acl-init init container when ACLs are enabled" {
-  cd `chart_dir`
-  local object=$(helm template \
-      -s templates/terminating-gateways-deployment.yaml  \
-      --set 'terminatingGateways.enabled=true' \
-      --set 'connectInject.enabled=true' \
-      --set 'terminatingGateways.enabled=true' \
-      --set 'global.acls.manageSystemACLs=true' \
-      . | yq '.spec.template.spec.initContainers[1].volumeMounts[2]' | tee /dev/stderr)
-
-  local actual=$(echo $object |
-      yq -r '.name' | tee /dev/stderr)
-  [ "${actual}" = "consul-data" ]
-
-  local actual=$(echo $object |
-      yq -r '.mountPath' | tee /dev/stderr)
-  [ "${actual}" = "/consul/login" ]
-
-  local actual=$(echo $object |
-      yq -r '.readOnly' | tee /dev/stderr)
-  [ "${actual}" = "false" ]
-}
-
-@test "terminatingGateways/Deployment: Adds consul ca cert volumeMount to acl-init init container when ACLs are enabled" {
-  cd `chart_dir`
-  local object=$(helm template \
-      -s templates/terminating-gateways-deployment.yaml  \
-      --set 'connectInject.enabled=true' \
-      --set 'terminatingGateways.enabled=true' \
-      --set 'global.acls.manageSystemACLs=true' \
-      --set 'global.tls.enabled=true' \
-      . | yq '.spec.template.spec.initContainers[1].volumeMounts[3]' | tee /dev/stderr)
-
-  local actual=$(echo $object |
-      yq -r '.name' | tee /dev/stderr)
-  [ "${actual}" = "consul-ca-cert" ]
-
-  local actual=$(echo $object |
-      yq -r '.mountPath' | tee /dev/stderr)
-  [ "${actual}" = "/consul/tls/ca" ]
-
-  local actual=$(echo $object |
-      yq -r '.readOnly' | tee /dev/stderr)
-  [ "${actual}" = "true" ]
-}
 #--------------------------------------------------------------------
 # metrics
 
@@ -1175,16 +1113,16 @@ key2: value2' \
 }
 
 #--------------------------------------------------------------------
-# service-init init container command
+# terminating-gateway-init init container command
 
-@test "terminatingGateways/Deployment: service-init init container defaults" {
+@test "terminatingGateways/Deployment: terminating-gateway-init init container defaults" {
   cd `chart_dir`
   local actual=$(helm template \
       -s templates/terminating-gateways-deployment.yaml \
       --set 'terminatingGateways.enabled=true' \
       --set 'connectInject.enabled=true' \
       . | tee /dev/stderr |
-      yq -s -r '.[0].spec.template.spec.initContainers | map(select(.name == "service-init"))[0] | .command[2]' | tee /dev/stderr)
+      yq -s -r '.[0].spec.template.spec.initContainers | map(select(.name == "terminating-gateway-init"))[0] | .command[2]' | tee /dev/stderr)
 
   exp='
 cat > /consul/service/service.hcl << EOF
@@ -1211,7 +1149,7 @@ EOF
   [ "${actual}" = "${exp}" ]
 }
 
-@test "terminatingGateways/Deployment: service-init init container with acls.manageSystemACLs=true" {
+@test "terminatingGateways/Deployment: terminating-gateway-init init container with acls.manageSystemACLs=true" {
   cd `chart_dir`
   local actual=$(helm template \
       -s templates/terminating-gateways-deployment.yaml \
@@ -1219,7 +1157,7 @@ EOF
       --set 'connectInject.enabled=true' \
       --set 'global.acls.manageSystemACLs=true' \
       . | tee /dev/stderr |
-      yq -s -r '.[0].spec.template.spec.initContainers | map(select(.name == "service-init"))[0] | .command[2]' | tee /dev/stderr)
+      yq -s -r '.[0].spec.template.spec.initContainers | map(select(.name == "terminating-gateway-init"))[0] | .command[2]' | tee /dev/stderr)
 
   exp='consul-k8s-control-plane acl-init \
   -acl-auth-method=RELEASE-NAME-consul-k8s-component-auth-method \
@@ -1250,7 +1188,7 @@ EOF
   [ "${actual}" = "${exp}" ]
 }
 
-@test "terminatingGateways/Deployment: service-init init container gateway namespace can be specified through defaults" {
+@test "terminatingGateways/Deployment: terminating-gateway-init init container gateway namespace can be specified through defaults" {
   cd `chart_dir`
   local actual=$(helm template \
       -s templates/terminating-gateways-deployment.yaml \
@@ -1259,7 +1197,7 @@ EOF
       --set 'global.enableConsulNamespaces=true' \
       --set 'terminatingGateways.defaults.consulNamespace=namespace' \
       . | tee /dev/stderr |
-      yq -s -r '.[0].spec.template.spec.initContainers | map(select(.name == "service-init"))[0] | .command[2]' | tee /dev/stderr)
+      yq -s -r '.[0].spec.template.spec.initContainers | map(select(.name == "terminating-gateway-init"))[0] | .command[2]' | tee /dev/stderr)
 
   exp='
 cat > /consul/service/service.hcl << EOF
@@ -1287,7 +1225,7 @@ EOF
   [ "${actual}" = "${exp}" ]
 }
 
-@test "terminatingGateways/Deployment: service-init init container gateway namespace can be specified through specific gateway overriding defaults" {
+@test "terminatingGateways/Deployment: terminating-gateway-init init container gateway namespace can be specified through specific gateway overriding defaults" {
   cd `chart_dir`
   local actual=$(helm template \
       -s templates/terminating-gateways-deployment.yaml \
@@ -1298,7 +1236,7 @@ EOF
       --set 'terminatingGateways.gateways[0].name=terminating-gateway' \
       --set 'terminatingGateways.gateways[0].consulNamespace=new-namespace' \
       . | tee /dev/stderr |
-      yq -s -r '.[0].spec.template.spec.initContainers | map(select(.name == "service-init"))[0] | .command[2]' | tee /dev/stderr)
+      yq -s -r '.[0].spec.template.spec.initContainers | map(select(.name == "terminating-gateway-init"))[0] | .command[2]' | tee /dev/stderr)
 
   exp='
 cat > /consul/service/service.hcl << EOF
