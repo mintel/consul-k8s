@@ -188,6 +188,7 @@ spec:
             - |
                 {{- if $root.Values.global.acls.manageSystemACLs }}
                 consul-k8s-control-plane acl-init \
+                  -component-name=terminating-gateway \
                   -acl-auth-method={{ template "consul.fullname" $root }}-k8s-component-auth-method \
                   {{- if $root.Values.global.adminPartitions.enabled }}
                   -partition={{ $root.Values.global.adminPartitions.name }} \
