@@ -785,9 +785,9 @@ type ConfigureGatewayParams struct {
 }
 
 func (c *Command) configureGateway(gatewayParams ConfigureGatewayParams, consulClient *api.Client) error {
-	// Create a token for each gateway name. Each gateway needs a
-	// separate token because users may need to attach different policies
-	// to each gateway token depending on what the services it represents
+	// Each gateway needs to be configured
+	// separately because users may need to attach different policies
+	// to each gateway role depending on what services it represents.
 	for _, name := range gatewayParams.GatewayNames {
 		if name == "" {
 			errMessage := fmt.Sprintf("%s gateway names cannot be empty",
@@ -817,7 +817,7 @@ func (c *Command) configureGateway(gatewayParams ConfigureGatewayParams, consulC
 				namespace = consulDefaultNamespace
 			}
 		} else if strings.ContainsAny(name, ".") {
-			errMessage := "Gateway names shouldn't include a namespace if Consul namespaces aren't enabled"
+			errMessage := "gateway names shouldn't include a namespace if Consul namespaces aren't enabled"
 			c.log.Error(errMessage, "gateway-name", name)
 			return errors.New(errMessage)
 		}
