@@ -1231,9 +1231,9 @@ client:
     # credentials present. Please see Snapshot agent config (https://consul.io/commands/snapshot/agent#config-file-options)
     # for details.
     configSecret:
-      # The name of the Kubernetes secret.
+      # secretName is the name of the Kubernetes secret or Vault secret path that holds the snapshot agentconfig.
       secretName: null
-      # The key of the Kubernetes secret.
+      # secretKey is the key within the Kubernetes secret or Vault secret key that holds the snapshot agentconfig.
       secretKey: null
 
     serviceAccount:

@@ -55,6 +55,11 @@ path "/%s/connect_inter/*" {
 path "pki/cert/ca" {
   capabilities = ["read"]
 }`
+
+	snapshotAgentPolicy = `
+path "consul/data/secret/snapshotagentpolicy" {
+  capabilities = ["read"]
+}`
 )
 
 // generateGossipSecret generates a random 32 byte secret returned as a base64 encoded string.
@@ -121,7 +126,7 @@ func configureEnterpriseLicenseVaultSecret(t *testing.T, vaultClient *vapi.Clien
 func configureKubernetesAuthRoles(t *testing.T, vaultClient *vapi.Client, consulReleaseName, ns, authPath, datacenter string, cfg *config.TestConfig) {
 	consulClientServiceAccountName := fmt.Sprintf("%s-consul-client", consulReleaseName)
 	consulServerServiceAccountName := fmt.Sprintf("%s-consul-server", consulReleaseName)
-	sharedPolicies := "consul-gossip"
+	sharedPolicies := "consul-gossip,consul-snapshotagentconfig"
 	if cfg.EnableEnterprise {
 		sharedPolicies += ",consul-enterpriselicense"
 	}
@@ -255,5 +260,23 @@ func createConnectCAPolicy(t *testing.T, vaultClient *vapi.Client, datacenter st
 	err := vaultClient.Sys().PutPolicy(
 		fmt.Sprintf("connect-ca-%s", datacenter),
 		fmt.Sprintf(connectCAPolicyTemplate, datacenter, datacenter))
+	require.NoError(t, err)
+}
+
+// configureEnterpriseLicenseVaultSecret stores it in vault as a secret and configures a policy to access it.
+func configureSnapshotAgentConfigVaultSecret(t *testing.T, vaultClient *vapi.Client) {
+	snapshotAgentConfig := "TODO"
+	// Create the enterprise license secret.
+	logger.Log(t, "Creating the Snapshot Agent Config secret")
+	params := map[string]interface{}{
+		"data": map[string]interface{}{
+			"snapshotagentconfig": snapshotAgentConfig,
+		},
+	}
+	_, err := vaultClient.Logical().Write("consul/data/secret/snapshotagentconfig", params)
+	require.NoError(t, err)
+
+	// Create the Vault Policy for the consul-enterpriselicense.
+	err = vaultClient.Sys().PutPolicy("consul-snapshotagentconfig", enterpriseLicensePolicy)
 	require.NoError(t, err)
 }
